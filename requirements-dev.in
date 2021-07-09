@@ -2,5 +2,6 @@
 
 seaborn
 matplotlib
+pyqt5
 tqdm
 
