@@ -28,7 +28,7 @@ def main():
         # convert signal to baseband.
         ca_samples = int(ca.samples_per_coherent_period * ca.noncoherent_integration_periods)
         t = np.arange(1, ca_samples + 1) / f_sampling
-        baseband_data = data[:ca_samples] * np.exp(-1j*2*np.pi*f_intermediate*t)
+        baseband_data = data[:ca_samples] * np.exp(-1j*2*np.pi*f_intermediate*t )
 
         for prn in prns:
             # estimate our coarse frequency error and code phase:

@@ -35,12 +35,12 @@ class CoarseAcquisition:
         t = np.arange(1,self.samples_per_coherent_period +1) / self.f_sampling
 
         # generate a matrix of constant waves, each column representing a doppler to mix against the baseband signal
-        doppler_carriers = np.exp(-1j * 2 * np.pi * np.matmul(self.doppler_values.reshape(-1, 1), t.reshape(1, -1)) + 0.1234)
+        doppler_carriers = np.exp(-1j * 2 * np.pi * np.matmul(self.doppler_values.reshape(-1, 1), t.reshape(1, -1)))
 
         # calculate new chipping rates based on each doppler rates:
         f_code_doppler = L1_CHIPPING_RATE * (1 + (self.doppler_values / L1_FREQ))
 
-        ca_code = generate_L1_spreading_code(prn)
+        ca_code = L1_CA_CODES[prn]
 
         chips_per_sample = f_code_doppler / self.f_sampling
 
@@ -99,75 +99,17 @@ class CoarseAcquisition:
 
         self.plot_correlation_map(correlation_map)
 
-        #TODO
-        # find the maximum peak in our correlation map, whose indices will show us the best doppler and code phase offsets:
-        #peaks, info = signal.find_peaks(correlation_map)
+        [code_phase_offset_in_samples, doppler_bin_idx] = np.unravel_index(correlation_map.argmax(), correlation_map.shape)
+        coarse_doppler_est = self.doppler_values[doppler_bin_idx]
 
-        # transform peak indices into meaningful values:
+        # TODO use a discriminator to detect if acquisition was successful
 
-        coarse_doppler_est = 0
-        code_phase_offset = 0
-
-        # return our estimated doppler error and code phase offset:
-        return coarse_doppler_est, code_phase_offset
-
-    def l1_coarse_acquire_sanity(self, baseband_data, prn):
-        if prn not in self.reference_signals:
-            raise ValueError
-
-        # # resize our incoming signal so that it's a multiple of the number of coherent period samples by non-coherent period
-        # baseband_data = baseband_data[: int(self.samples_per_coherent_period * self.noncoherent_integration_periods)]
-
-        # reshape our incoming signal by number of non-coherent periods
-        baseband_data = baseband_data.reshape((-1, self.noncoherent_integration_periods))
-
-        correlation_map = np.zeros((int(self.samples_per_coherent_period), len(self.doppler_values)), dtype=complex)
-
-        for nch_idx in range(0, self.noncoherent_integration_periods):
-
-            # convolve our reference signals by our base_signal blocks by multiplying in the frequency domain:
-            data_fft = np.fft.fft(baseband_data[:, nch_idx])
-
-            for doppler_idx in range(len(self.doppler_values)):
-                ##### generate reference signals for correlation:
-                t = np.arange(1, self.samples_per_coherent_period + 1) / self.f_sampling
-
-                dop = self.doppler_values[doppler_idx]
-
-                # generate a matrix of constant waves, each column representing a doppler to mix against the baseband signal
-                doppler_carrier = np.exp(-1j * 2 * np.pi * dop * t)
-
-                # calculate new chipping rates based on each doppler rates:
-                f_code_doppler = L1_CHIPPING_RATE * (1 + (dop / L1_FREQ))
-
-                ca_code = L1_CA_CODES[prn]
-
-                chips_per_sample = f_code_doppler / self.f_sampling
-
-                resampling_index_matrix = (np.arange(int(self.samples_per_coherent_period)) *
-                                           chips_per_sample % len(ca_code)).astype(np.int)
-
-                doppler_affected_ca_code = ca_code[resampling_index_matrix]
-
-                # modulate resampled CA code onto doppler reference waves. remember to shift our ca code around -1, 1 to cause a phase shift
-                reference_signal = doppler_carrier * (doppler_affected_ca_code * 2 - 1)
-
-                #reference = self.reference_signals[prn][:, doppler_idx]
-
-                correlation_map[:, doppler_idx] += np.abs(np.fft.ifft(data_fft * np.conj(np.fft.fft(reference_signal))))
-
-        correlation_map = correlation_map ** 2
-
-        self.plot_correlation_map(correlation_map)
-
-        #TODO
-        # find the maximum peak in our correlation map, whose indices will show us the best doppler and code phase offsets:
-        #peaks, info = signal.find_peaks(correlation_map)
-
-        # transform peak indices into meaningful values:
-
-        coarse_doppler_est = 0
-        code_phase_offset = 0
+        # TODO: FUTURE: would be cool to try to train a binary classifier to detect signal presence using the
+        #  correlation map as a rastered image for input.
 
         # return our estimated doppler error and code phase offset:
-        return coarse_doppler_est, code_phase_offset
+        return coarse_doppler_est, code_phase_offset_in_samples
+
+
+    def l1_fine_acquire(self):
+        pass

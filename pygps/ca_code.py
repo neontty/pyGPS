@@ -70,6 +70,20 @@ def verify_l1_ca_codes():
     return True
 
 
+def resample_l1_ca_code_with_doppler(prn, f_sampling, f_doppler, n_samples):
+    # calculate new chipping rates based on each doppler rates:
+    f_code_doppler = L1_CHIPPING_RATE * (1 + (f_doppler / L1_FREQ))
+
+    ca_code = L1_CA_CODES[prn]
+
+    chips_per_sample = f_code_doppler / f_sampling
+
+    resampling_indices = (np.arange(n_samples) * chips_per_sample % len(ca_code)).astype(np.int)
+
+    return ca_code[resampling_indices]
+
+
+
 if __name__ == '__main__':
     verify_l1_ca_codes()
     print(L1_CA_CODES)
